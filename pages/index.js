@@ -1,99 +1,84 @@
-import fetch from 'isomorphic-unfetch'
+import TodosController from '../utils/todos'
+import { ToDateTime } from '../utils/intl'
+import Head from 'next/head'
 
-export default class IndexPage extends React.Component {
+export default class extends React.Component {
   state = {
-    users: [],
-    name: '',
-    email: ''
+    todos: [],
+    text: ''
   }
 
+  todosController = new TodosController()
+
   async componentDidMount() {
-    const query = `
-      query {
-        test {
-          users {
-            email
-            name
-          }
-        }
-      }
-    `
+    const todos = await this.todosController.getAll()
+    this.setState({ todos })
+  }
 
-    const res = await fetch('/graphql', {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({ query })
-    })
-
-    const {
-      data: {
-        test: {
-          users
-        }
-      }
-    } = await res.json()
-
-    this.setState({ users })
+  onCompleteClick = async (id, done) => {
+    const updated = await this.todosController.done(id, !done)
+    const newTodos = this.state.todos.map(t => t.id == id ? { ...t, ...updated } : t)
+    
+    this.setState({ todos: newTodos })
   }
 
   onChange = (e) => {
-    const name = e.target.name
-    const value = e.target.value
-
-    this.setState({
-      [name]: value
-    })
+    this.setState({ text: e.target.value })
   }
 
-  onSubmit = async (e) => {
+  formSubmit = async (e) => {
     e.preventDefault()
 
-    const { name, email, users } = this.state
+    const todo = await this.todosController.create(this.state.text)
 
-    const query = `
-      mutation {
-        addTestUser(user: { name: "${name}", email: "${email}" }) {
-          email
-        }
-      }
-    `
+    let copyTodos = [...this.state.todos]
+    copyTodos.push(todo)
 
-    const res = await fetch('/graphql', {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({ query })
-    })
+    this.setState({ todos: copyTodos })
+  }
 
-    const { data: { addTestUser : { email: newEmail } } } = await res.json()
-
-    const addUsers = [...users]
-    addUsers.push({ email: newEmail })
-
-    this.setState({ users: addUsers })
-
+  onDeleteClick = async (id) => {
+    const res = this.todosController.delete(id)
+    if (res) {
+      let filtered = this.state.todos.filter(todo => todo.id !== id)
+      this.setState({ todos: filtered })
+    }
   }
 
   render() {
-    const { users, name, email } = this.state
+    const { todos, text } = this.state
+
+    console.table(todos)
+
     return (
       <div>
-        <h1>Hello world!</h1>
+        <Head>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css" />
+        </Head>
+        <h1>Todos</h1>
         <ul>
           {
-            users && users.map((user, i) => <li key={i}>{user.name} [{user.email}]</li>)
-          }
+            todos.map(todo =>
+              <li key={todo.id}>
+                {todo.id} {todo.name}{` `}
+                <span onClick={() => this.onCompleteClick(todo.id, todo.done)}>
+                  {todo.done ? <i className="fas fa-check-square"></i> : <i className="fas fa-square"></i>}
+                </span>{` `}
+                {ToDateTime(todo.createdAt)} {ToDateTime(todo.updatedAt)}
+                <button onClick={() => this.onDeleteClick(todo.id)}>Удалить</button>
+              </li>
+            )}
         </ul>
-        <form onSubmit={this.onSubmit}>
-          <input type="text" name="name" value={name} onChange={this.onChange} />
-          <input type="email" name="email" value={email} onChange={this.onChange} />
-          <input type="submit" value="Отправить" />
+        <form onSubmit={this.formSubmit}>
+          <input type="text" name="text" value={text} onChange={this.onChange} />
+          <input type="submit" value="Добавить" />
         </form>
+
+        <style jsx>{`
+          span {
+            cursor: pointer;
+          }
+        `}</style>
       </div>
     )
   }
