@@ -61,11 +61,13 @@ export default class extends React.Component {
             <input type="text" name="text" value={text} onChange={this.onChange} />
             <input type="submit" value="Добавить" />
           </form>
-          {
-            todos.map(todo =>
-              <TodoCard key={todo.id} todo={todo} onComplete={this.onComplete} onDelete={this.onDelete} />
-            )
-          }
+          <div className="todoitems">
+            {
+              todos.map(todo =>
+                <TodoCard key={todo.id} todo={todo} onComplete={this.onComplete} onDelete={this.onDelete} />
+              )
+            }
+          </div>
         </div>
 
         <style jsx global>{`
@@ -110,6 +112,10 @@ export default class extends React.Component {
           }
           input[type=submit] {
             margin-left: .5rem;
+          }
+          .todoitems {
+            display: flex;
+            flex-direction: column-reverse;
           }
         `}</style>
       </div>
